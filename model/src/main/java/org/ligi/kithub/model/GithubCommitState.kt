@@ -1,4 +1,4 @@
-package kontinuum.model.github
+package org.ligi.kithub.model
 
 enum class GithubCommitState{
         pending,

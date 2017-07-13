@@ -1,3 +1,3 @@
-package kontinuum.model.github
+package org.ligi.kithub.model
 
 data class GithubInstallationInfo(val id: String)

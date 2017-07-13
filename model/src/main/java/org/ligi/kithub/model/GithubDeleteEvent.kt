@@ -1,4 +1,4 @@
-package kontinuum.model.github
+package org.ligi.kithub.model
 
 data class GithubDeleteEvent(val ref: String,
                              val repository: GithubRepository,

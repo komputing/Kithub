@@ -1,4 +1,4 @@
-package kontinuum.model.github
+package org.ligi.kithub.model
 
 data class GithubPushEvent(val ref: String,
                            val created: Boolean,

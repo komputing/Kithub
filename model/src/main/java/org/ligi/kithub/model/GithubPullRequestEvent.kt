@@ -1,4 +1,4 @@
-package kontinuum.model.github
+package org.ligi.kithub.model
 
 data class GithubPullRequestEvent(val action: String,
                                   val number: Int,

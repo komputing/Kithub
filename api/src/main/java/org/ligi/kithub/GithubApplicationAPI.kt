@@ -6,15 +6,11 @@ import com.nimbusds.jose.crypto.RSASSASigner
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
 import com.squareup.moshi.Moshi
-import kontinuum.model.github.GithubCommitStatus
-import kontinuum.model.github.GithubDeleteEvent
-import kontinuum.model.github.GithubPullRequestEvent
-import kontinuum.model.github.GithubPushEvent
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import org.ligi.kithub.model.TokenResponse
+import org.ligi.kithub.model.*
 import java.io.File
 import java.security.KeyFactory
 import java.security.PrivateKey
@@ -26,9 +22,12 @@ class GithubApplicationAPI(val integration: String, val cert: File, val okHttpCl
     val moshi = Moshi.Builder().build()
     val tokenResponseAdapter = moshi.adapter(TokenResponse::class.java)!!
     val commitStatusAdapter = moshi.adapter(GithubCommitStatus::class.java)!!
+    val githubLabelAdapter = moshi.adapter(GithubLabel::class.java)!!
+    val githubIssueAdapter = moshi.adapter(GithubIssue::class.java)!!
     val pushEventAdapter = moshi.adapter(GithubPushEvent::class.java)!!
     val deleteEventAdapter = moshi.adapter(GithubDeleteEvent::class.java)!!
     val pullRequestEventAdapter = moshi.adapter(GithubPullRequestEvent::class.java)!!
+
 
     private fun obtain_private_key(private_key_file: File): PrivateKey {
         val privateKeyBytes = private_key_file.readBytes()
@@ -54,11 +53,12 @@ class GithubApplicationAPI(val integration: String, val cert: File, val okHttpCl
 
         val jwt = signedJWT.serialize()
 
-        val execute = executeCommand(command = "installations/${installation}/access_tokens", token = jwt, body = RequestBody.create(null, ByteArray(0)))
+        val execute = executePostCommand(
+                command = "installations/$installation/access_tokens",
+                token = jwt,
+                body = RequestBody.create(null, ByteArray(0))
+        ) ?: return null
 
-        if (execute == null) {
-            return null
-        }
         return tokenResponseAdapter.fromJson(execute)?.token
 
     }
@@ -69,7 +69,7 @@ class GithubApplicationAPI(val integration: String, val cert: File, val okHttpCl
 
         val commitStatusJson = commitStatusAdapter.toJson(status)
 
-        executeCommand(
+        executePostCommand(
                 command = "repos/$full_repo/statuses/$commit_id",
                 token = token!!,
                 body = RequestBody.create(MediaType.parse("json"), commitStatusJson)
@@ -77,7 +77,33 @@ class GithubApplicationAPI(val integration: String, val cert: File, val okHttpCl
 
     }
 
-    private fun executeCommand(command: String, token: String, body: RequestBody): String? {
+    fun addIssue(full_repo: String, status: GithubIssue, installation: String): String? {
+
+        val token = getToken(installation)
+
+        val issueJSON = githubIssueAdapter.toJson(status)
+
+        return executePostCommand(
+                command = "repos/$full_repo/issues",
+                token = token!!,
+                body = RequestBody.create(MediaType.parse("json"), issueJSON)
+        )
+    }
+
+    fun addLabel(full_repo: String, status: GithubLabel, installation: String): String? {
+
+        val token = getToken(installation)
+
+        val labelJSON = githubLabelAdapter.toJson(status)
+
+        return executePostCommand(
+                command = "repos/$full_repo/labels",
+                token = token!!,
+                body = RequestBody.create(MediaType.parse("json"), labelJSON)
+        )
+    }
+
+    private fun executePostCommand(command: String, token: String, body: RequestBody): String? {
         val request = Request.Builder()
                 .post(body)
                 .header("Authorization", "Bearer $token")

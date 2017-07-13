@@ -1,4 +1,4 @@
-package kontinuum.model.github
+package org.ligi.kithub.model
 
 data class GithubCommit(val id: String,
                         val tree_id: String,
