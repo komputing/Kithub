@@ -17,7 +17,7 @@ import java.security.PrivateKey
 import java.security.spec.PKCS8EncodedKeySpec
 import java.util.*
 
-class GithubApplicationAPI(val integration: String, val cert: File, val okHttpClient: OkHttpClient = OkHttpClient.Builder().build()) {
+open class GithubApplicationAPI(val integration: String, val cert: File, val okHttpClient: OkHttpClient = OkHttpClient.Builder().build()) {
 
     val moshi = Moshi.Builder().build()
     val tokenResponseAdapter = moshi.adapter(TokenResponse::class.java)!!
@@ -103,7 +103,21 @@ class GithubApplicationAPI(val integration: String, val cert: File, val okHttpCl
         )
     }
 
-    private fun executePostCommand(command: String, token: String, body: RequestBody): String? {
+    fun addIssueComment(full_repo: String, issue: String, body: String, installation: String): String? {
+
+        val token = getToken(installation)
+
+        val body = "{\"body\":\"$body\"}"
+
+        return executePostCommand(
+                command = "repos/$full_repo/issues/$issue/comments",
+                token = token!!,
+                body = RequestBody.create(MediaType.parse("json"), body)
+        )
+    }
+
+
+    protected fun executePostCommand(command: String, token: String, body: RequestBody): String? {
         val request = Request.Builder()
                 .post(body)
                 .header("Authorization", "Bearer $token")
