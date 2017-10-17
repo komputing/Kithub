@@ -6,6 +6,7 @@ import com.nimbusds.jose.crypto.RSASSASigner
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,6 +28,9 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
     val pushEventAdapter = moshi.adapter(GithubPushEvent::class.java)!!
     val deleteEventAdapter = moshi.adapter(GithubDeleteEvent::class.java)!!
     val pullRequestEventAdapter = moshi.adapter(GithubPullRequestEvent::class.java)!!
+
+    var pgpKeyInfoListType = Types.newParameterizedType(List::class.java, GithubPGPKeyInfo::class.java)
+    var githubPGPKeyInfoAdapter = moshi.adapter<List<GithubPGPKeyInfo>>(pgpKeyInfoListType)
 
 
     private fun obtain_private_key(private_key_file: File): PrivateKey {
@@ -117,6 +121,16 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
     }
 
 
+    fun getUserPGP(user: String, installation: String): List<GithubPGPKeyInfo> {
+
+        val token = getToken(installation)
+
+        return githubPGPKeyInfoAdapter.fromJson(executeGetCommand(
+                command = "users/$user/gpg_keys",
+                token = token!!
+        )!!)!!
+    }
+
     protected fun executePostCommand(command: String, token: String, body: RequestBody): String? {
         val request = Request.Builder()
                 .post(body)
@@ -136,5 +150,26 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
 
         return res
     }
+
+    protected fun executeGetCommand(command: String, token: String): String? {
+        val request = Request.Builder()
+                .get()
+                .header("Authorization", "Bearer $token")
+                .header("Accept", "application/vnd.github.machine-man-preview+json")
+                .url("https://api.github.com/$command")
+                .build()
+
+        val execute = okHttpClient.newCall(request).execute()
+        val res = execute.body()?.use { it.string() }
+
+        if (execute.code() / 100 != 2) {
+            println("problem executing $command $res")
+            return null
+        }
+
+
+        return res
+    }
+
 
 }
