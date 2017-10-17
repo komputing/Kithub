@@ -7,5 +7,6 @@ data class GithubIssue(val title: String,
                        val milestone: String?,
                        val pull_request: GithubPullRequest?,
                        val labels:List<GithubLabel>,
-                       val assignees: List<String>
+                       val assignee: GithubUser,
+                       val assignees: List<GithubUser>
 )
