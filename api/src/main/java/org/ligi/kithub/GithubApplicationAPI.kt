@@ -8,15 +8,19 @@ import com.nimbusds.jwt.SignedJWT
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.ligi.kithub.model.*
 import java.io.File
 import java.security.KeyFactory
 import java.security.PrivateKey
 import java.security.spec.PKCS8EncodedKeySpec
 import java.util.*
+
+private val JSONMediaType: MediaType = "application/json".toMediaType()
 
 open class GithubApplicationAPI(val integration: String, val cert: File, val okHttpClient: OkHttpClient = OkHttpClient.Builder().build()) {
 
@@ -60,7 +64,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
         val execute = executePostCommand(
                 command = "installations/$installation/access_tokens",
                 token = jwt,
-                body = RequestBody.create(null, ByteArray(0))
+                body = ByteArray(0).toRequestBody(null, 0)
         ) ?: return null
 
         return tokenResponseAdapter.fromJson(execute)?.token
@@ -76,7 +80,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
         executePostCommand(
                 command = "repos/$full_repo/statuses/$commit_id",
                 token = token!!,
-                body = RequestBody.create(MediaType.parse("json"), commitStatusJson)
+                body = commitStatusJson.toRequestBody(JSONMediaType)
         )
 
     }
@@ -90,7 +94,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
         return executePostCommand(
                 command = "repos/$full_repo/issues",
                 token = token!!,
-                body = RequestBody.create(MediaType.parse("json"), issueJSON)
+                body = issueJSON.toRequestBody(JSONMediaType)
         )
     }
 
@@ -103,7 +107,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
         return executePostCommand(
                 command = "repos/$full_repo/labels",
                 token = token!!,
-                body = RequestBody.create(MediaType.parse("json"), labelJSON)
+                body = labelJSON.toRequestBody(JSONMediaType)
         )
     }
 
@@ -111,12 +115,12 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
 
         val token = getToken(installation)
 
-        val body = "{\"body\":\"$body\"}"
+        val bodyString = "{\"body\":\"$body\"}"
 
         return executePostCommand(
                 command = "repos/$full_repo/issues/$issue/comments",
                 token = token!!,
-                body = RequestBody.create(MediaType.parse("json"), body)
+                body = bodyString.toRequestBody(JSONMediaType)
         )
     }
 
@@ -140,9 +144,9 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
                 .build()
 
         val execute = okHttpClient.newCall(request).execute()
-        val res = execute.body()?.use { it.string() }
+        val res = execute.body?.use { it.string() }
 
-        if (execute.code() / 100 != 2) {
+        if (execute.code / 100 != 2) {
             println("problem executing $command $res")
             return null
         }
@@ -160,9 +164,9 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
                 .build()
 
         val execute = okHttpClient.newCall(request).execute()
-        val res = execute.body()?.use { it.string() }
+        val res = execute.body?.use { it.string() }
 
-        if (execute.code() / 100 != 2) {
+        if (execute.code / 100 != 2) {
             println("problem executing $command $res")
             return null
         }
@@ -170,6 +174,5 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
 
         return res
     }
-
 
 }
