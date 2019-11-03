@@ -7,14 +7,13 @@ import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import okhttp3.MediaType
+import kotlinx.coroutines.delay
+import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.ligi.kithub.model.*
 import java.io.File
+import java.io.IOException
 import java.security.KeyFactory
 import java.security.PrivateKey
 import java.security.spec.PKCS8EncodedKeySpec
@@ -22,7 +21,9 @@ import java.util.*
 
 private val JSONMediaType: MediaType = "application/json".toMediaType()
 
-open class GithubApplicationAPI(val integration: String, val cert: File, val okHttpClient: OkHttpClient = OkHttpClient.Builder().build()) {
+open class GithubApplicationAPI(private val integration: String,
+                                private val cert: File,
+                                private val okHttpClient: OkHttpClient = OkHttpClient.Builder().build()) {
 
     val moshi = Moshi.Builder().build()
     val tokenResponseAdapter = moshi.adapter(TokenResponse::class.java)!!
@@ -43,7 +44,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
         return KeyFactory.getInstance("RSA").generatePrivate(encodedKeySpec)
     }
 
-    fun getToken(installation: String): String? {
+    suspend fun getToken(installation: String): String? {
 
         val claimsSet = JWTClaimsSet.Builder()
                 .issuer(integration)
@@ -71,7 +72,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
 
     }
 
-    fun setStatus(full_repo: String, commit_id: String, status: GithubCommitStatus, installation: String) {
+    suspend fun setStatus(full_repo: String, commit_id: String, status: GithubCommitStatus, installation: String) {
 
         val token = getToken(installation)
 
@@ -85,7 +86,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
 
     }
 
-    fun addIssue(full_repo: String, status: GithubIssue, installation: String): String? {
+    suspend fun addIssue(full_repo: String, status: GithubIssue, installation: String): String? {
 
         val token = getToken(installation)
 
@@ -98,7 +99,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
         )
     }
 
-    fun addLabel(full_repo: String, status: GithubLabel, installation: String): String? {
+    suspend fun addLabel(full_repo: String, status: GithubLabel, installation: String): String? {
 
         val token = getToken(installation)
 
@@ -111,7 +112,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
         )
     }
 
-    fun addIssueComment(full_repo: String, issue: String, body: String, installation: String): String? {
+    suspend fun addIssueComment(full_repo: String, issue: String, body: String, installation: String): String? {
 
         val token = getToken(installation)
 
@@ -125,7 +126,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
     }
 
 
-    fun getUserPGP(user: String, installation: String): List<GithubPGPKeyInfo> {
+    suspend fun getUserPGP(user: String, installation: String): List<GithubPGPKeyInfo> {
 
         val token = getToken(installation)
 
@@ -135,7 +136,7 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
         )!!)!!
     }
 
-    protected fun executePostCommand(command: String, token: String, body: RequestBody): String? {
+    protected suspend fun executePostCommand(command: String, token: String, body: RequestBody): String? {
         val request = Request.Builder()
                 .post(body)
                 .header("Authorization", "Bearer $token")
@@ -143,19 +144,18 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
                 .url("https://api.github.com/$command")
                 .build()
 
-        val execute = okHttpClient.newCall(request).execute()
-        val res = execute.body?.use { it.string() }
+        val execute = executeWithRetry(request)
+        val res = execute?.body?.use { it.string() }
 
-        if (execute.code / 100 != 2) {
+        if (execute==null || execute.code / 100 != 2) {
             println("problem executing $command $res")
             return null
         }
 
-
         return res
     }
 
-    protected fun executeGetCommand(command: String, token: String): String? {
+    protected suspend fun executeGetCommand(command: String, token: String): String? {
         val request = Request.Builder()
                 .get()
                 .header("Authorization", "Bearer $token")
@@ -163,16 +163,28 @@ open class GithubApplicationAPI(val integration: String, val cert: File, val okH
                 .url("https://api.github.com/$command")
                 .build()
 
-        val execute = okHttpClient.newCall(request).execute()
-        val res = execute.body?.use { it.string() }
+        val response = executeWithRetry(request)
+        val res = response?.body?.use { it.string() }
 
-        if (execute.code / 100 != 2) {
+        if (response == null || response.code / 100 != 2) {
             println("problem executing $command $res")
             return null
         }
 
-
         return res
+    }
+
+    private suspend fun executeWithRetry(request: Request, attempts: Int = 5): Response? {
+        repeat(attempts) {
+            try {
+                return okHttpClient.newCall(request).execute()
+            } catch (ioe: IOException) {
+                // we will retry in this case
+                delay(1000)
+            }
+
+        }
+        return null // we tried our best
     }
 
 }
