@@ -23,9 +23,9 @@ private val JSONMediaType: MediaType = "application/json".toMediaType()
 
 open class GithubApplicationAPI(private val integration: String,
                                 private val cert: File,
-                                private val okHttpClient: OkHttpClient = OkHttpClient.Builder().build()) {
+                                private val okHttpClient: OkHttpClient = OkHttpClient.Builder().build(),
+                                moshi: Moshi = Moshi.Builder().build()) {
 
-    val moshi = Moshi.Builder().build()
     val tokenResponseAdapter = moshi.adapter(TokenResponse::class.java)!!
     val commitStatusAdapter = moshi.adapter(GithubCommitStatus::class.java)!!
     val githubLabelAdapter = moshi.adapter(GithubLabel::class.java)!!
@@ -147,7 +147,7 @@ open class GithubApplicationAPI(private val integration: String,
         val execute = executeWithRetry(request)
         val res = execute?.body?.use { it.string() }
 
-        if (execute==null || execute.code / 100 != 2) {
+        if (execute == null || execute.code / 100 != 2) {
             println("problem executing $command $res")
             return null
         }
