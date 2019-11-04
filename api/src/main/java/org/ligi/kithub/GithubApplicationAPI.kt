@@ -7,6 +7,7 @@ import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.delay
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,7 +25,7 @@ private val JSONMediaType: MediaType = "application/json".toMediaType()
 open class GithubApplicationAPI(private val integration: String,
                                 private val cert: File,
                                 private val okHttpClient: OkHttpClient = OkHttpClient.Builder().build(),
-                                moshi: Moshi = Moshi.Builder().build()) {
+                                moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()) {
 
     val tokenResponseAdapter = moshi.adapter(TokenResponse::class.java)!!
     val commitStatusAdapter = moshi.adapter(GithubCommitStatus::class.java)!!
