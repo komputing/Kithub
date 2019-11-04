@@ -1,3 +1,3 @@
 package org.ligi.kithub.model
 
-data class TokenResponse(val token: String, val expires: String)
+data class TokenResponse(val token: String, val expires_at: String)
