@@ -27,16 +27,16 @@ open class GithubApplicationAPI(private val integration: String,
                                 private val okHttpClient: OkHttpClient = OkHttpClient.Builder().build(),
                                 moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()) {
 
-    val tokenResponseAdapter = moshi.adapter(TokenResponse::class.java)!!
-    val commitStatusAdapter = moshi.adapter(GithubCommitStatus::class.java)!!
-    val githubLabelAdapter = moshi.adapter(GithubLabel::class.java)!!
-    val githubIssueAdapter = moshi.adapter(GithubIssue::class.java)!!
+    private val tokenResponseAdapter = moshi.adapter(TokenResponse::class.java)!!
+    private val commitStatusAdapter = moshi.adapter(GithubCommitStatus::class.java)!!
+    private val githubLabelAdapter = moshi.adapter(GithubLabel::class.java)!!
+    private val githubIssueAdapter = moshi.adapter(GithubIssue::class.java)!!
     val pushEventAdapter = moshi.adapter(GithubPushEvent::class.java)!!
     val deleteEventAdapter = moshi.adapter(GithubDeleteEvent::class.java)!!
     val pullRequestEventAdapter = moshi.adapter(GithubPullRequestEvent::class.java)!!
 
-    var pgpKeyInfoListType = Types.newParameterizedType(List::class.java, GithubPGPKeyInfo::class.java)
-    var githubPGPKeyInfoAdapter = moshi.adapter<List<GithubPGPKeyInfo>>(pgpKeyInfoListType)
+    private var pgpKeyInfoListType = Types.newParameterizedType(List::class.java, GithubPGPKeyInfo::class.java)
+    private var githubPGPKeyInfoAdapter = moshi.adapter<List<GithubPGPKeyInfo>>(pgpKeyInfoListType)
 
 
     private fun obtain_private_key(private_key_file: File): PrivateKey {
@@ -137,7 +137,7 @@ open class GithubApplicationAPI(private val integration: String,
         )!!)!!
     }
 
-    protected suspend fun executePostCommand(command: String, token: String, body: RequestBody): String? {
+    private suspend fun executePostCommand(command: String, token: String, body: RequestBody): String? {
         val request = Request.Builder()
                 .post(body)
                 .header("Authorization", "Bearer $token")
@@ -156,7 +156,7 @@ open class GithubApplicationAPI(private val integration: String,
         return res
     }
 
-    protected suspend fun executeGetCommand(command: String, token: String): String? {
+    private  suspend fun executeGetCommand(command: String, token: String): String? {
         val request = Request.Builder()
                 .get()
                 .header("Authorization", "Bearer $token")
