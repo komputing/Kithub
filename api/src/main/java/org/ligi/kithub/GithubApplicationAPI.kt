@@ -64,7 +64,7 @@ open class GithubApplicationAPI(private val integration: String,
         val jwt = signedJWT.serialize()
 
         val execute = executePostCommand(
-                command = "installations/$installation/access_tokens",
+                command = "app/installations/$installation/access_tokens",
                 token = jwt,
                 body = ByteArray(0).toRequestBody(null, 0)
         ) ?: return null
