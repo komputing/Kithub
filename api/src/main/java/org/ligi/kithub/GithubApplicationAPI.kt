@@ -39,7 +39,7 @@ open class GithubApplicationAPI(private val integration: String,
     private var githubPGPKeyInfoAdapter = moshi.adapter<List<GithubPGPKeyInfo>>(pgpKeyInfoListType)
 
 
-    private fun obtain_private_key(private_key_file: File): PrivateKey {
+    private fun obtainPrivateKey(private_key_file: File): PrivateKey {
         val privateKeyBytes = private_key_file.readBytes()
         val encodedKeySpec = PKCS8EncodedKeySpec(privateKeyBytes)
         return KeyFactory.getInstance("RSA").generatePrivate(encodedKeySpec)
@@ -53,7 +53,7 @@ open class GithubApplicationAPI(private val integration: String,
                 .expirationTime(Date(Date().time))
                 .build()
 
-        val signer = RSASSASigner(obtain_private_key(cert))
+        val signer = RSASSASigner(obtainPrivateKey(cert))
 
         val signedJWT = SignedJWT(
                 JWSHeader(JWSAlgorithm.RS256),
