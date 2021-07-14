@@ -2,7 +2,7 @@ dependencies {
     implementation project(':model')
 
     api 'com.squareup.okhttp3:okhttp:4.9.0'
-    implementation 'com.nimbusds:nimbus-jose-jwt:9.9.3'
+    implementation 'com.nimbusds:nimbus-jose-jwt:9.11.1'
 
     api 'com.squareup.moshi:moshi:1.10.0'
     api 'com.squareup.moshi:moshi-kotlin:1.10.0'
