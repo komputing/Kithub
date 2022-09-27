@@ -1,5 +1,5 @@
 dependencies {
-    compile 'org.threeten:threetenbp:1.5.1'
+    compile 'org.threeten:threetenbp:1.6.2'
 }
 
 
