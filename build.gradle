@@ -32,4 +32,12 @@ allprojects {
         withSourcesJar()
     }
 
+    group = "org.ligi"
+    publishing {
+     publications {
+        kithub(MavenPublication) {
+            from components.java
+        }
+     }
+    }
 }
