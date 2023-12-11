@@ -8,13 +8,14 @@ import com.nimbusds.jwt.SignedJWT
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import kotlinx.coroutines.delay
-import okhttp3.*
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.ligi.kithub.model.*
 import java.io.File
-import java.io.IOException
 import java.security.KeyFactory
 import java.security.PrivateKey
 import java.security.spec.PKCS8EncodedKeySpec
@@ -22,10 +23,12 @@ import java.util.*
 
 private val JSONMediaType: MediaType = "application/json".toMediaType()
 
-open class GithubApplicationAPI(private val integration: String,
-                                private val cert: File,
-                                private val okHttpClient: OkHttpClient = OkHttpClient.Builder().build(),
-                                moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()) {
+open class GithubApplicationAPI(
+    private val integration: String,
+    private val cert: File,
+    okHttpClient: OkHttpClient = OkHttpClient.Builder().build(),
+    moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+) : GithubAPI(okHttpClient, moshi) {
 
     private val tokenResponseAdapter = moshi.adapter(TokenResponse::class.java)!!
     private val commitStatusAdapter = moshi.adapter(GithubCommitStatus::class.java)!!
@@ -48,25 +51,26 @@ open class GithubApplicationAPI(private val integration: String,
     suspend fun getToken(installation: String): String? {
 
         val claimsSet = JWTClaimsSet.Builder()
-                .issuer(integration)
-                .issueTime(Date())
-                .expirationTime(Date(Date().time))
-                .build()
+            .issuer(integration)
+            .issueTime(Date())
+            .expirationTime(Date(Date().time))
+            .build()
 
         val signer = RSASSASigner(obtainPrivateKey(cert))
 
         val signedJWT = SignedJWT(
-                JWSHeader(JWSAlgorithm.RS256),
-                claimsSet)
+            JWSHeader(JWSAlgorithm.RS256),
+            claimsSet
+        )
 
         signedJWT.sign(signer)
 
         val jwt = signedJWT.serialize()
 
         val execute = executePostCommand(
-                command = "app/installations/$installation/access_tokens",
-                token = jwt,
-                body = ByteArray(0).toRequestBody(null, 0)
+            command = "app/installations/$installation/access_tokens",
+            token = jwt,
+            body = ByteArray(0).toRequestBody(null, 0)
         ) ?: return null
 
         return tokenResponseAdapter.fromJson(execute)?.token
@@ -80,9 +84,9 @@ open class GithubApplicationAPI(private val integration: String,
         val commitStatusJson = commitStatusAdapter.toJson(status)
 
         executePostCommand(
-                command = "repos/$full_repo/statuses/$commit_id",
-                token = token!!,
-                body = commitStatusJson.toRequestBody(JSONMediaType)
+            command = "repos/$full_repo/statuses/$commit_id",
+            token = token!!,
+            body = commitStatusJson.toRequestBody(JSONMediaType)
         )
 
     }
@@ -94,9 +98,9 @@ open class GithubApplicationAPI(private val integration: String,
         val issueJSON = githubIssueAdapter.toJson(status)
 
         return executePostCommand(
-                command = "repos/$full_repo/issues",
-                token = token!!,
-                body = issueJSON.toRequestBody(JSONMediaType)
+            command = "repos/$full_repo/issues",
+            token = token!!,
+            body = issueJSON.toRequestBody(JSONMediaType)
         )
     }
 
@@ -107,9 +111,9 @@ open class GithubApplicationAPI(private val integration: String,
         val labelJSON = githubLabelAdapter.toJson(status)
 
         return executePostCommand(
-                command = "repos/$full_repo/labels",
-                token = token!!,
-                body = labelJSON.toRequestBody(JSONMediaType)
+            command = "repos/$full_repo/labels",
+            token = token!!,
+            body = labelJSON.toRequestBody(JSONMediaType)
         )
     }
 
@@ -120,9 +124,9 @@ open class GithubApplicationAPI(private val integration: String,
         val bodyString = "{\"body\":\"$body\"}"
 
         return executePostCommand(
-                command = "repos/$full_repo/issues/$issue/comments",
-                token = token!!,
-                body = bodyString.toRequestBody(JSONMediaType)
+            command = "repos/$full_repo/issues/$issue/comments",
+            token = token!!,
+            body = bodyString.toRequestBody(JSONMediaType)
         )
     }
 
@@ -131,19 +135,21 @@ open class GithubApplicationAPI(private val integration: String,
 
         val token = getToken(installation)
 
-        return githubPGPKeyInfoAdapter.fromJson(executeGetCommand(
+        return githubPGPKeyInfoAdapter.fromJson(
+            executeGetCommand(
                 command = "users/$user/gpg_keys",
                 token = token!!
-        )!!)!!
+            )!!
+        )!!
     }
 
     private suspend fun executePostCommand(command: String, token: String, body: RequestBody): String? {
         val request = Request.Builder()
-                .post(body)
-                .header("Authorization", "Bearer $token")
-                .header("Accept", "application/vnd.github.machine-man-preview+json")
-                .url("https://api.github.com/$command")
-                .build()
+            .post(body)
+            .header("Authorization", "Bearer $token")
+            .header("Accept", "application/vnd.github.machine-man-preview+json")
+            .url("https://api.github.com/$command")
+            .build()
 
         val execute = executeWithRetry(request)
         val res = execute?.body?.use { it.string() }
@@ -156,36 +162,5 @@ open class GithubApplicationAPI(private val integration: String,
         return res
     }
 
-    private  suspend fun executeGetCommand(command: String, token: String): String? {
-        val request = Request.Builder()
-                .get()
-                .header("Authorization", "Bearer $token")
-                .header("Accept", "application/vnd.github.machine-man-preview+json")
-                .url("https://api.github.com/$command")
-                .build()
-
-        val response = executeWithRetry(request)
-        val res = response?.body?.use { it.string() }
-
-        if (response == null || response.code / 100 != 2) {
-            println("problem executing $command $res")
-            return null
-        }
-
-        return res
-    }
-
-    private suspend fun executeWithRetry(request: Request, attempts: Int = 5): Response? {
-        repeat(attempts) {
-            try {
-                return okHttpClient.newCall(request).execute()
-            } catch (ioe: IOException) {
-                // we will retry in this case
-                delay(1000)
-            }
-
-        }
-        return null // we tried our best
-    }
 
 }
